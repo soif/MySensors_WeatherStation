@@ -2,18 +2,16 @@
 DebugUtils.h - Simple debugging utilities.
 Ideas taken from:
 http://forum.arduino.cc/index.php?topic=46900.0
+v2.0
 
 usage:
-#define MY_DEBUG
+#define OWN_DEBUG
 #include "debug.h"
 
 */
 
-#ifndef MY_DEBUG_UTILS_H
-#define MY_DEBUG_UTILS_H
-#endif
 
-#ifdef MY_DEBUG
+#ifdef OWN_DEBUG
 #include <Arduino.h>
 
 #define DEBUG_PRINT(str)    \
