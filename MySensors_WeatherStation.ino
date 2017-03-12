@@ -1,3 +1,15 @@
+/*
+	MySensors Weather Station
+	https://github.com/soif/MySensors_WeatherStation
+	Copyright 2014 François Déchery
+
+	** Description **
+	This Arduino ProMini (3.3V) based project is a MySensors node  solar powered node which reports external temperature, luminosity, humidity, barometric pressure and rain condition. 
+
+	** Compilation **
+		- needs MySensors version 1.5+
+*/
+
 // includes ------------------------------------------------------------------------------
 #include <SPI.h>
 #include <MySensor.h>	 
@@ -12,7 +24,7 @@
 #define SERIAL_PRINT_DEBUG false //do we print serial
 
 #define INFO_NAME "WeatherStation"
-#define INFO_VERS "1.1"
+#define INFO_VERS "1.54.0"
 
 #define GW_NODE_ID 201		// 255 for Auto
 #define GW_REPEATER false	// repeater mode
