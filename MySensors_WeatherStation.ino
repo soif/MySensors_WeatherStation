@@ -10,9 +10,14 @@
 		- needs MySensors version 1.5+
 */
 
+// debug #################################################################################
+#define MY_DEBUG	// Comment/uncomment to remove/show debug (May overflow Arduino memory when set)
+
 // includes ------------------------------------------------------------------------------
+#include "debug.h"
+
 #include <SPI.h>
-#include <MySensor.h>	 
+#include <MySensor.h>
 #include <Wire.h> 
 #include <DHT.h>	
 #include <Adafruit_BMP085.h>
