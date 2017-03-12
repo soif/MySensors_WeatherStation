@@ -36,9 +36,8 @@
 #define SLEEP_TIME			75017	// read sensors every 75017 ms (every 1m 15s 17ms )
 #define REPORT_ALL_COUNT	24		// force report every x cycles
 #define BATTERY_MIN			800		// value when Battery is 3.3v
-
-#define NUM_READS			100		// time to read analog values
 #define RAIN_MIN			250		// minimum analog rain value (when dry)
+#define NUM_READS			100		// time to read analog values
 
 // Pins ##################################################################################
 #define PIN_RAIN_DIGITAL	3 
@@ -47,7 +46,7 @@
 #define PIN_BATTERY_SENSE	A0
 #define PIN_RAIN_ANALOG		A1
 
-// BMP085 & BH1750 wired to A4, A5
+// BMP085 & BH1750 are wired to A4, A5
 
 // includes ##############################################################################
 #include "debug.h"
@@ -59,7 +58,6 @@
 #include <BH1750.h>
 #include <DallasTemperature.h>
 #include <OneWire.h>
-
 
 // Variables #############################################################################
 boolean	metric			= true;
@@ -103,7 +101,6 @@ void setup(){
 	Serial.begin(115000);
 	bootLeds();
 
-
 	dht.setup(PIN_DHT); 
 	bmp.begin();
 	lightSensor.begin();
@@ -115,8 +112,7 @@ void setup(){
 	dallas.begin();
 	dallas.setWaitForConversion(false);
 	
-	DEBUG_PRINTLN("_setup END");
-	
+	DEBUG_PRINTLN("_setup END");	
 }
 
 
@@ -142,9 +138,9 @@ void loop(){
 		DEBUG_PRINTLN("");
 	}
 
-	ReadBattery();
+	readBattery();
 
-	
+
 	// dht (Temps + Hum) sensor ------------------------------
 	delay(dht.getMinimumSamplingPeriod());
 	float temperature	= dht.getTemperature();
@@ -224,7 +220,7 @@ void loop(){
 		send(msgRainD.set(digitalRain));
 		lastDigitalRain = digitalRain;
 	}
-	ReadAnalogRain();
+	readAnalogRain();
 
 
 	//debug ----------------------------------------------------
@@ -243,10 +239,34 @@ void loop(){
 	sleep(SLEEP_TIME);
 }
 
+
+// #######################################################################################
 // #######################################################################################
 
+
 // --------------------------------------------------------------------
-void ReadBattery(){
+void presentation(){
+	DEBUG_PRINTLN("_presentation START");
+	sendSketchInfo(INFO_NAME , INFO_VERS );
+
+	present(CHILD_ID_HUM,		S_HUM);
+	present(CHILD_ID_TEMP,		S_TEMP);
+	present(CHILD_ID_BARO,		S_BARO);
+	present(CHILD_ID_LIGHT,		S_LIGHT_LEVEL);
+	present(CHILD_ID_RAIN_D,	S_MOTION);
+	present(CHILD_ID_RAIN_A,	S_RAIN);
+
+	DEBUG_PRINTLN("_presentation END");
+}
+
+
+// --------------------------------------------------------------------
+void receive(const MyMessage &msg){
+}
+
+
+// --------------------------------------------------------------------
+void readBattery(){
 	analogReference(INTERNAL);
 	analogRead(PIN_BATTERY_SENSE);
 	wait(5);
@@ -265,8 +285,9 @@ void ReadBattery(){
 	}
 }
 
+
 // --------------------------------------------------------------------
-void ReadAnalogRain(){
+void readAnalogRain(){
 	analogReference(DEFAULT);
 	analogRead(PIN_RAIN_ANALOG); 
 	wait(5);
@@ -282,28 +303,8 @@ void ReadAnalogRain(){
 		send(msgRainA.set(analogRainPcnt));
 		lastAnalogRainPcnt = analogRainPcnt;
 	}
-
 }
 
-
-// --------------------------------------------------------------------
-void presentation(){
-	DEBUG_PRINTLN("_presentation START");
-	sendSketchInfo(INFO_NAME , INFO_VERS );
-
-	present(CHILD_ID_HUM,		S_HUM);
-	present(CHILD_ID_TEMP,		S_TEMP);
-	present(CHILD_ID_BARO,		S_BARO);
-	present(CHILD_ID_LIGHT,		S_LIGHT_LEVEL);
-	present(CHILD_ID_RAIN_D,	S_MOTION);
-	present(CHILD_ID_RAIN_A,	S_RAIN);
-
-	DEBUG_PRINTLN("_presentation END");
-}
-
-// --------------------------------------------------------------------
-void receive(const MyMessage &msg){
-}
 
 // --------------------------------------------------------------------
 void bootLeds(){
