@@ -29,12 +29,16 @@
 #define CHILD_ID_TEMP		1
 #define CHILD_ID_BARO		2
 #define CHILD_ID_LIGHT		3
-#define CHILD_ID_RAIN		4
+#define CHILD_ID_RAIN_D		4
+#define CHILD_ID_RAIN_A		5
 
 #define ALTITUDE			36.32	// meters above sealevel (see http://www.altitude.nu/)
-#define SLEEP_TIME			7501	// read sensors every 75017 ms (every 1m 15s 17ms )
+#define SLEEP_TIME			75017	// read sensors every 75017 ms (every 1m 15s 17ms )
 #define REPORT_ALL_COUNT	24		// force report every x cycles
 #define BATTERY_MIN			800		// value when Battery is 3.3v
+
+#define NUM_READS			100		// time to read analog values
+#define RAIN_MIN			250		// minimum analog rain value (when dry)
 
 // Pins ##################################################################################
 #define PIN_RAIN_DIGITAL	3 
@@ -59,18 +63,23 @@
 
 // Variables #############################################################################
 boolean	metric			= true;
-float	lastHum			= -1;
-float	lastTemp		= -100;
-float	lastBmpTemp		= -100;
-float	lastDallasTemp	= -100;
-float	lastPressure	= -1;
-int		lastRainValue	= -1;
-uint16_t	lastLux		= -1;
+float		lastHum				= -1;
+float		lastTemp			= -100;
+float		lastBmpTemp			= -100;
+float		lastDallasTemp		= -100;
+float		lastPressure		= -1;
+int			lastDigitalRain		= -1;
+int 		lastAnalogRainPcnt	= 0;
+uint16_t	lastLux				= -1;
+int 		lastBatteryPcnt		= 0;
+int 		updateCount			= 0;
 
-int lastBatteryPcnt		= 0;
-int updateCount			= 0;
+//float		batteryRatio	= 100.0 / (1023 - BATTERY_MIN);
+float		batteryVal		=0;
+int			batteryPcnt		=0;
 
-float batteryRatio		= 100.0 / (1023 - BATTERY_MIN);
+float		analogRain		=0;
+int			analogRainPcnt	=0;
 
 // objects --------
 DHT						dht;
@@ -83,15 +92,13 @@ MyMessage msgHum(		CHILD_ID_HUM,	V_HUM);
 MyMessage msgTemp(		CHILD_ID_TEMP,	V_TEMP);
 MyMessage msgPressure(	CHILD_ID_BARO,	V_PRESSURE);
 MyMessage msgLux(		CHILD_ID_LIGHT, V_LIGHT_LEVEL);
-MyMessage msgRain(		CHILD_ID_RAIN,	V_TRIPPED);
-
+MyMessage msgRainD(		CHILD_ID_RAIN_D,	V_TRIPPED);
+MyMessage msgRainA(		CHILD_ID_RAIN_A,	V_RAIN);
 
 
 // ###### Setup ##########################################################################
 void setup(){
 	DEBUG_PRINTLN("_setup START");
-
-	analogReference(INTERNAL);
 
 	Serial.begin(115000);
 	bootLeds();
@@ -100,7 +107,10 @@ void setup(){
 	dht.setup(PIN_DHT); 
 	bmp.begin();
 	lightSensor.begin();
+
 	pinMode(PIN_RAIN_DIGITAL, INPUT);
+	pinMode(PIN_RAIN_ANALOG, INPUT);
+	pinMode(PIN_BATTERY_SENSE, INPUT);
 
 	dallas.begin();
 	dallas.setWaitForConversion(false);
@@ -113,22 +123,27 @@ void setup(){
 // ###### main Loop ######################################################################
 void loop(){
 	updateCount += 1;
-	
+
 	if (updateCount >= REPORT_ALL_COUNT) {
 		lastHum = -1;
 
-		lastTemp		= -100;
-		lastBmpTemp		= -100;
-		lastDallasTemp	= -100;
+		lastTemp			= -100;
+		lastBmpTemp			= -100;
+		lastDallasTemp		= -100;
 	
-		lastPressure	= -1;
-		lastLux			= -1;
-		lastRainValue	= -1;
-		lastBatteryPcnt	= -1;
-		updateCount		= 0;
-		DEBUG_PRINTLN("Forcing report...");
-
+		lastPressure		= -1;
+		lastLux				= -1;
+		lastDigitalRain		= -1;
+		lastBatteryPcnt		= -1;
+		lastAnalogRainPcnt	= -1;
+		updateCount			= 0;
+		DEBUG_PRINTLN("");
+		DEBUG_PRINTLN("--> Forcing report... --------------------");
+		DEBUG_PRINTLN("");
 	}
+
+	ReadBattery();
+
 	
 	// dht (Temps + Hum) sensor ------------------------------
 	delay(dht.getMinimumSamplingPeriod());
@@ -151,6 +166,23 @@ void loop(){
 		if (humidity != lastHum) {
 			lastHum = humidity;
 			send(msgHum.set(humidity,0));
+		}
+	}
+
+
+	// Dallas 1820 Sensor ------------------------------------
+	dallas.requestTemperatures(); // Send the command to get temperatures
+	delay( dallas.millisToWaitForConversion(dallas.getResolution()) ); // make sure we get the latest temps
+
+	float dallasTemp = dallas.getTempCByIndex(0);
+	if (! isnan(dallasTemp)) {
+		dallasTemp = ( (int) (dallasTemp * 10 ) )/ 10.0 ; //rounded to 1 dec
+		if (dallasTemp != lastDallasTemp	&& dallasTemp != -127.00 && dallasTemp != 85.0) {
+			if (!metric) {
+				dallasTemp = dallasTemp * 1.8 + 32.0;
+			}
+			send(msgTemp.set(dallasTemp, 1));
+			lastDallasTemp = dallasTemp;
 		}
 	}
 
@@ -187,38 +219,14 @@ void loop(){
 	
 	
 	// Rain Sensor -------------------------------------------
-	int rainValue = !(digitalRead(PIN_RAIN_DIGITAL));
-	if (rainValue != lastRainValue) {
-		send(msgRain.set(rainValue));
-		lastRainValue = rainValue;
+	int digitalRain = !(digitalRead(PIN_RAIN_DIGITAL));
+	if (digitalRain != lastDigitalRain) {
+		send(msgRainD.set(digitalRain));
+		lastDigitalRain = digitalRain;
 	}
+	ReadAnalogRain();
 
 
-	// Dallas 1820 Sensor ------------------------------------
-	dallas.requestTemperatures(); // Send the command to get temperatures
-	delay( dallas.millisToWaitForConversion(dallas.getResolution()) ); // make sure we get the latest temps
-
-	float dallasTemp = dallas.getTempCByIndex(0);
-	if (! isnan(dallasTemp)) {
-		dallasTemp = ( (int) (dallasTemp * 10 ) )/ 10.0 ; //rounded to 1 dec
-		if (dallasTemp != lastDallasTemp	&& dallasTemp != -127.00 && dallasTemp != 85.0) {
-			if (!metric) {
-				dallasTemp = dallasTemp * 1.8 + 32.0;
-			}
-			send(msgTemp.set(dallasTemp, 1));
-			lastDallasTemp = dallasTemp;
-		}
-	}
-
-
-	// Battery ------------------------------------------------
-	int sensorValue = analogRead(PIN_BATTERY_SENSE);
-	int batteryPcnt = (sensorValue - BATTERY_MIN) * batteryRatio;
-	if (lastBatteryPcnt != batteryPcnt) {
-		sendBatteryLevel(batteryPcnt);
-		lastBatteryPcnt = batteryPcnt;
-	}
-	
 	//debug ----------------------------------------------------
 	DEBUG_PRINTLN("#########################################");
 	DEBUG_PRINT("# DHT Humidity    : "); DEBUG_PRINTLN(humidity);
@@ -227,9 +235,9 @@ void loop(){
 	DEBUG_PRINT("# Baro Temp       : "); DEBUG_PRINTLN(bmptemp);
 	DEBUG_PRINT("# Baro Pressure   : "); DEBUG_PRINTLN(pressure);
 	DEBUG_PRINT("# Lux             : "); DEBUG_PRINTLN(lux);
-	DEBUG_PRINT("# Rain            : "); DEBUG_PRINTLN(rainValue);
-	DEBUG_PRINT("# Rain Analog     : "); DEBUG_PRINTLN(analogRead(PIN_RAIN_ANALOG));
-	DEBUG_PRINT("# Battery         : "); DEBUG_PRINT(sensorValue); DEBUG_PRINT(" (");DEBUG_PRINT(batteryPcnt); ;DEBUG_PRINTLN(" %)");
+	DEBUG_PRINT("# Rain            : "); DEBUG_PRINTLN(digitalRain);
+	DEBUG_PRINT("# Rain Analog     : "); DEBUG_PRINT(analogRain); DEBUG_PRINT(" (");DEBUG_PRINT(analogRainPcnt); ;DEBUG_PRINTLN(" %)");
+	DEBUG_PRINT("# Battery         : "); DEBUG_PRINT(batteryVal); DEBUG_PRINT(" (");DEBUG_PRINT(batteryPcnt); ;DEBUG_PRINTLN(" %)");
 	DEBUG_PRINTLN("#########################################");
 
 	sleep(SLEEP_TIME);
@@ -238,15 +246,57 @@ void loop(){
 // #######################################################################################
 
 // --------------------------------------------------------------------
+void ReadBattery(){
+	analogReference(INTERNAL);
+	analogRead(PIN_BATTERY_SENSE);
+	wait(5);
+	batteryVal=0;
+	for(int i=0;i< NUM_READS;i++){
+      batteryVal += analogRead(PIN_BATTERY_SENSE);    
+      wait(2);
+    }
+	batteryVal = ceil(batteryVal / NUM_READS);
+	//batteryPcnt = (batteryVal - BATTERY_MIN) * batteryRatio;
+	batteryPcnt	=map(batteryVal, BATTERY_MIN,1023, 0,100);
+	
+	if (lastBatteryPcnt != batteryPcnt) {
+		sendBatteryLevel(batteryPcnt);
+		lastBatteryPcnt = batteryPcnt;
+	}
+}
+
+// --------------------------------------------------------------------
+void ReadAnalogRain(){
+	analogReference(DEFAULT);
+	analogRead(PIN_RAIN_ANALOG); 
+	wait(5);
+	analogRain=0;
+	for(int i=0;i< NUM_READS;i++){
+      analogRain += analogRead(PIN_RAIN_ANALOG);    
+      wait(2);
+    }
+	analogRain 		= ceil(analogRain / NUM_READS);
+	analogRainPcnt	= map(analogRain, RAIN_MIN,1023, 100,0);
+
+	if (lastAnalogRainPcnt != analogRainPcnt) {
+		send(msgRainA.set(analogRainPcnt));
+		lastAnalogRainPcnt = analogRainPcnt;
+	}
+
+}
+
+
+// --------------------------------------------------------------------
 void presentation(){
 	DEBUG_PRINTLN("_presentation START");
 	sendSketchInfo(INFO_NAME , INFO_VERS );
 
-	present(CHILD_ID_HUM,	S_HUM);
-	present(CHILD_ID_TEMP,	S_TEMP);
-	present(CHILD_ID_BARO,	S_BARO);
-	present(CHILD_ID_LIGHT,	S_LIGHT_LEVEL);
-	present(CHILD_ID_RAIN,	S_MOTION);
+	present(CHILD_ID_HUM,		S_HUM);
+	present(CHILD_ID_TEMP,		S_TEMP);
+	present(CHILD_ID_BARO,		S_BARO);
+	present(CHILD_ID_LIGHT,		S_LIGHT_LEVEL);
+	present(CHILD_ID_RAIN_D,	S_MOTION);
+	present(CHILD_ID_RAIN_A,	S_RAIN);
 
 	DEBUG_PRINTLN("_presentation END");
 }
