@@ -1,7 +1,7 @@
 # MySensors Weather Station
 
 This Arduino ProMini (3.3V) based project is a [MySensors](https://www.mysensors.org/) solar powered node which reports external temperature, luminosity, humidity, barometric pressure and rain condition. 
-It is largely inspired by [this great project](https://forum.mysensors.org/topic/841/solar-powered-mini-weather-station)
+It is largely inspired by [this great project](https://forum.mysensors.org/topic/841/solar-powered-mini-weather-station).
 
 
 ## Features
