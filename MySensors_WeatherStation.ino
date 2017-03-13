@@ -1,7 +1,8 @@
 /*
 	MySensors Weather Station
 	https://github.com/soif/MySensors_WeatherStation
-	Copyright 2014 François Déchery
+	https://forum.mysensors.org/topic/841/solar-powered-mini-weather-station
+	Copyright 2015 François Déchery
 
 	** Description **
 	This Arduino ProMini (3.3V) based project is a MySensors node  solar powered node which reports external temperature, luminosity, humidity, barometric pressure and rain condition. 
@@ -12,11 +13,11 @@
 
 // debug #################################################################################
 #define OWN_DEBUG	// Comment/uncomment to remove/show debug (May overflow Arduino memory when set)
-#define MY_DEBUG	// Comment/uncomment to remove/show MySensors debug messages (May overflow Arduino memory when set)
+//#define MY_DEBUG	// Comment/uncomment to remove/show MySensors debug messages (May overflow Arduino memory when set)
 
 // Define ################################################################################
 #define INFO_NAME "WeatherStation"
-#define INFO_VERS "2.1.0"
+#define INFO_VERS "2.11.00"
 
 // MySensors
 #define MY_RADIO_NRF24
@@ -225,6 +226,7 @@ void loop(){
 
 	//debug ----------------------------------------------------
 	DEBUG_PRINTLN("#########################################");
+	DEBUG_PRINT("### Count : ")		   ; DEBUG_PRINTLN(updateCount);
 	DEBUG_PRINT("# DHT Humidity    : "); DEBUG_PRINTLN(humidity);
 	DEBUG_PRINT("# DHT Temperature : "); DEBUG_PRINTLN(temperature);
 	DEBUG_PRINT("# Dallas Temp     : "); DEBUG_PRINTLN(dallasTemp);
