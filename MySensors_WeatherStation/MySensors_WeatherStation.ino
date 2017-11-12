@@ -5,7 +5,7 @@
 	Copyright 2015 François Déchery
 
 	** Description **
-	This Arduino ProMini (3.3V) based project is a MySensors node  solar powered node which reports external temperature, luminosity, humidity, barometric pressure and rain condition. 
+	This Arduino ProMini (3.3V) based project is a MySensors node  solar powered node which reports external temperature, luminosity, humidity, barometric pressure and rain condition.
 
 	** Compilation **
 		- needs MySensors version 2.1+
@@ -17,7 +17,7 @@
 
 // Define ################################################################################
 #define INFO_NAME "WeatherStation"
-#define INFO_VERS "2.11.00"
+#define INFO_VERS "2.11.01"
 
 // MySensors
 #define MY_RADIO_NRF24
@@ -41,9 +41,9 @@
 #define NUM_READS			100		// time to read analog values
 
 // Pins ##################################################################################
-#define PIN_RAIN_DIGITAL	3 
+#define PIN_RAIN_DIGITAL	3
 #define PIN_DHT				4
-#define PIN_ONEWIRE			5 
+#define PIN_ONEWIRE			5
 #define PIN_BATTERY_SENSE	A0
 #define PIN_RAIN_ANALOG		A1
 
@@ -53,8 +53,8 @@
 #include "debug.h"
 #include <SPI.h>
 #include <MySensors.h>
-#include <Wire.h> 
-#include <DHT.h>	
+#include <Wire.h>
+#include <DHT.h>
 #include <Adafruit_BMP085.h>
 #include <BH1750.h>
 #include <DallasTemperature.h>
@@ -90,7 +90,7 @@ DallasTemperature		dallas(&oneWire);
 MyMessage msgHum(		CHILD_ID_HUM,	V_HUM);
 MyMessage msgTemp(		CHILD_ID_TEMP,	V_TEMP);
 MyMessage msgPressure(	CHILD_ID_BARO,	V_PRESSURE);
-MyMessage msgLux(		CHILD_ID_LIGHT, V_LIGHT_LEVEL);
+MyMessage msgLux(		CHILD_ID_LIGHT, V_LEVEL);
 MyMessage msgRainD(		CHILD_ID_RAIN_D,	V_TRIPPED);
 MyMessage msgRainA(		CHILD_ID_RAIN_A,	V_RAIN);
 
@@ -102,7 +102,7 @@ void setup(){
 	Serial.begin(115000);
 	bootLeds();
 
-	dht.setup(PIN_DHT); 
+	dht.setup(PIN_DHT);
 	bmp.begin();
 	lightSensor.begin();
 
@@ -112,8 +112,8 @@ void setup(){
 
 	dallas.begin();
 	dallas.setWaitForConversion(false);
-	
-	DEBUG_PRINTLN("_setup END");	
+
+	DEBUG_PRINTLN("_setup END");
 }
 
 
@@ -127,7 +127,7 @@ void loop(){
 		lastTemp			= -100;
 		lastBmpTemp			= -100;
 		lastDallasTemp		= -100;
-	
+
 		lastPressure		= -1;
 		lastLux				= -1;
 		lastDigitalRain		= -1;
@@ -146,7 +146,7 @@ void loop(){
 	delay(dht.getMinimumSamplingPeriod());
 	float temperature	= dht.getTemperature();
 	float humidity		= dht.getHumidity();
-	
+
 	if (! isnan(temperature)) {
 		temperature = ( (int) (temperature * 10 ) )/ 10.0 ; //rounded to 1 dec
 		if (temperature != lastTemp) {
@@ -154,10 +154,10 @@ void loop(){
 			if (!metric) {
 				temperature = temperature * 1.8 + 32.0;
 			}
-			//send(msgTemp.set(temperature,1));		
+			//send(msgTemp.set(temperature,1));
 		}
-	} 
-	
+	}
+
 	if (! isnan(humidity)) {
 		humidity= (int) (humidity + 0.5); // round to integer
 		if (humidity != lastHum) {
@@ -194,7 +194,7 @@ void loop(){
 		}
 	}
 
-	float bmptemp = bmp.readTemperature();	
+	float bmptemp = bmp.readTemperature();
 	if (! isnan(bmptemp)) {
 		bmptemp = ( (int) (bmptemp * 10 ) )/ 10.0 ; //rounded to 1 dec
 		if (bmptemp != lastBmpTemp) {
@@ -206,15 +206,15 @@ void loop(){
 		}
 	}
 
-	
+
 	// Light Sensor -----------------------------------------
 	uint16_t lux = lightSensor.readLightLevel();
 	if (lux != lastLux) {
 		send(msgLux.set(lux));
 		lastLux = lux;
 	}
-	
-	
+
+
 	// Rain Sensor -------------------------------------------
 	int digitalRain = !(digitalRead(PIN_RAIN_DIGITAL));
 	if (digitalRain != lastDigitalRain) {
@@ -274,13 +274,13 @@ void readBattery(){
 	wait(5);
 	batteryVal=0;
 	for(int i=0;i< NUM_READS;i++){
-      batteryVal += analogRead(PIN_BATTERY_SENSE);    
+      batteryVal += analogRead(PIN_BATTERY_SENSE);
       wait(2);
     }
 	batteryVal = ceil(batteryVal / NUM_READS);
 	//batteryPcnt = (batteryVal - BATTERY_MIN) * batteryRatio;
 	batteryPcnt	=map(batteryVal, BATTERY_MIN,1023, 0,100);
-	
+
 	if (lastBatteryPcnt != batteryPcnt) {
 		sendBatteryLevel(batteryPcnt);
 		lastBatteryPcnt = batteryPcnt;
@@ -291,11 +291,11 @@ void readBattery(){
 // --------------------------------------------------------------------
 void readAnalogRain(){
 	analogReference(DEFAULT);
-	analogRead(PIN_RAIN_ANALOG); 
+	analogRead(PIN_RAIN_ANALOG);
 	wait(5);
 	analogRain=0;
 	for(int i=0;i< NUM_READS;i++){
-      analogRain += analogRead(PIN_RAIN_ANALOG);    
+      analogRain += analogRead(PIN_RAIN_ANALOG);
       wait(2);
     }
 	analogRain 		= ceil(analogRain / NUM_READS);
@@ -320,4 +320,3 @@ void bootLeds(){
 		delay(90);
 	}
 }
-
